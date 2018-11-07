@@ -1,0 +1,146 @@
+\section{libp2p}
+
+\subsection{Network Layer}
+This is the lowest layer and is built mostly from existing networks protocol for reliable transfer of data. 
+\subsection{Routing Layer}
+The routing layer is used when we need to find which peers contain data corresponding to a particular hash value on IPFS. This requires the use of distributed hash tables.
+
+A distributed hash table (DHT) is a lookup service similar to hash tables i.e. they store (key, value) pairs and any node in the system can efficiently give a value corresponding to any key by interacting with other nodes in the system. They differ from hash tables in that none of the nodes store the entire hash table, but only a small portion of it. The protocols for who stores which key and what is stored as a value varies between different DHTs.
+
+IPFS used ideas from the Kademlia DHT\cite{Maymounkov:2002:KPI:646334.687801} and the Coral DHT\cite{Freedman:2004:DCP:1251175.1251193}.
+
+Now, DHTs are an important component of p2p systems. Let's see how these systems work:
+
+\begin{enumerate}
+    \item Each node which is a part of the p2p system is given a NodeID.
+    \item Kademlia stores the values in nodes which are nearest to the key. The distance is defined as the XOR of the key value and the NodeID.
+    \item Every node also stores the addresses of nodes at exponentially increasing distance from itself i.e. node at distance $2^0$, $2^1$, $2^2$ and so on. Thus it stores addresses to at most $log_2(n)$ nodes where $n$ is the total number of nodes in the system. Lets call these the neighbours of a node.
+    \item When a node needs to find the value corresponding to a certain key, it checks which nodeID, say $nid$, would be closest to the particular key and then looks for the node with nodeID $nid$.
+    \item If the node it is looking for is one of its neighbours, it is done and can communicate directly with it to get the value corresponding to the key.
+    \item If not, then it find the neighbour nearest to the node with nodeID $nid$ (can be again done using XOR distance). We'll call this neighbour $n$
+    \item The node asks neighbour $n$ if it knows the address of node with nodeID $nid$.
+    \item If $n$ knows the address, it returns it, otherwise returns the address of it's own neighbour closest to nodeID $nid$, say $n2$
+    \item Now the node makes a query to $n2$ and the process continues. This iterative process is similar to what happens in iterative DNS.
+    \item When the correct node is finally found, a query is made to it to retrieve the value corresponding to the key.
+\end{enumerate}
+
+Using the above protocol, Kademlia does an efficient lookup through massive networks by querying a maximum of $log_2(n)$ nodes. S/Kademlia also provides resistance to Sybil attacks and a low coordination overhead. It is used in systems like Gnutella and BitTorrent.
+
+S/Kademlia\cite{Pecori:2016:SKA:2884080.2884249} also extends Kademlia to lookup values over disjoint paths so that even in the presence of a lot of adversaries, honest nodes can connect to each other.
+
+IPFS also uses ideas from Coral DSHT (Distributed Sloppy Hash Table) to prevent hot-spots (overcrowding of all the nearest nodes when a key become popular). Coral also prevents "near" nodes from storing the data they don't need/want when "far" nodes are already storing it. To do this, the DHT stores the address of nodes containing values of a particular key rather than the value itself. Thus when the correct node is found using the above algorithm, it returns the address of all the other nodes which store that value. A query can now be made to one of these nodes to retrieve the value.
+
+
+In IPFS, nodes are identified by a NodeId, the cryptographic hash
+of a public-key, created with the static crypto puz-
+zle used in S/Kademlia. The identity generation uses the following method:
+
+\begin{minted}{c}
+difficulty = <integer parameter>
+n = Node{}
+do {
+    n.PubKey, n.PrivKey = PKI.genKeyPair()
+    n.NodeId = hash(n.PubKey)
+    p = count_preceding_zero_bits(hash(n.NodeId))
+} while (p < difficulty)
+\end{minted}
+
+The interface used by IPFS's DHT is as follows:
+
+\begin{minted}{go}
+type IPFSRouting interface {
+    FindPeer(node NodeId)
+    // gets a particular peer's network address
+    SetValue(key []bytes, value []bytes)
+    // stores a small metadata value in DHT
+    GetValue(key []bytes)
+    // retrieves small metadata value from DHT
+    ProvideValue(key Multihash)
+    // announces this node can serve a large value
+    FindValuePeers(key Multihash, min int)
+    // gets a number of peers serving a large value
+}
+\end{minted}
+
+
+
+\subsection{Exchange Layer}
+
+This layer is built to achieve interchange of data blocks between the nodes in the p2p system. For this, IPFS takes inspiration from BitTorrent\cite{Pouwelse:2005:BPF:2138958.2138984}.
+
+BitTorrent has some very useful features like sending the rarest pieces of data first so the non-seed peers can trade with each other. It also rewards nodes who share data and contributes to the system while punishing ones which only leech resources.
+
+
+
+Taking the above ideas, IPFS built it's own protocol known as BitSwap. The nodes have a \textit{want\_list} and a \textit{have\_list}. The \textit{want\_list} stores which blocks the nodes is looking to acquire and the \textit{have\_list} store the blocks that it is willing to share. BitSwap forms a kind of credit system to incentivize nodes to seed even when they do not need anything in particular. This credit score also incentivizes the nodes to find, cache and distribute rare pieces of data even if doesn't want them itself.
+
+\subsubsection{BitSwap Credit}
+
+In BitSwap, nodes sending and receiving data from other nodes track their balance with the other node. This causes nodes to share data in the present and hoping to have the debt repaid in the future when they need data.
+
+The data is sent with a certain probability which depends on how much debt the receiver has with that sender. As the debt increases, the probability of receiving data decreases. After every denied request the peer is ignored for an \textit{ignore\_cooldown} timeout to prevent the peer from gaming the probability by just sending a lot of requests (more dice-rolls).
+
+\subsubsection{BitSwap Strategy}
+
+BitSwap aims to be harsh to leechers and lenient to trusted peers even when they are temporarily unable to share data. The current algorithm:
+
+\begin{enumerate}
+    \item The node calculates a value named \textit{debt ratio} $r$ between a node and it's peer.\\
+    \begin{center}\Large
+        $r = \frac{bytes\_sent (in past)}{bytes\_recv (in past) + 1}$
+    \end{center}
+    
+    
+    \item Given the \textit{debt ratio} $r$, the probability of sending to a debter is given as: \\
+    \begin{center}\Large
+        $P(\text{send} | r) = 1 - \frac{1}{1 + \exp{6 - 3r}}$
+    \end{center}
+    
+\end{enumerate}
+
+A lower debt ratio means high probability of getting the data.
+
+This method has certain other advantages as well:
+\begin{enumerate}
+    \item It prevents Sybil attacks since newly created nodes would all have shared no data in the past
+    \item It protect nodes who have previously shared a lot of data but are temporarily unable to do so
+\end{enumerate}
+
+\subsubsection{BitSwap Ledger}
+
+The data needed to calculate the debt ratio needs to be stored somewhere. Each node stores a \textit{Ledger} to keep track of exchange with all the other nodes.
+
+The \textit{Ledger} structure looks as follows:
+
+\begin{minted}{c}
+type Ledger struct {
+    owner NodeId
+    partner NodeId
+    bytes_sent int
+    bytes_recv int
+    timestamp Timestamp
+}
+\end{minted}
+
+This ledger is sent to the peer while requesting information. If the data inside the ledger does not exactly match what the peer has, the ledger is re-initialized to zero. A node may try to lose the debt by sending a random ledger, but they would also lose the acquired credit so there is a trade-of.
+
+\subsubsection{BitSwap Interface}
+
+The BitSwap protocol has the following interface:
+
+\begin{minted}{go}
+// Protocol interface:
+interface Peer {
+    open (nodeid :NodeId, ledger :Ledger);
+    send_want_list (want_list :WantList);
+    send_block (block :Block) -> (complete :Bool);
+    close (final :Bool);
+}
+\end{minted}
+
+\begin{enumerate}
+    \item open (nodeid :NodeId, ledger :Ledger) : This function is used to open a connection with a peer a node wants data from. The node send the ledger corresponding to that peer in the request. The peer can choose to accept or reject the connection based on the debt of the node or the values in the ledger.
+    \item send\_wan\_list (want\_list :WantList) : After the connections has opened, the node sends its want list to the peer. The peer checks if it has any of the wanted blocks and then sends it according to the BitSwap strategy.
+    \item send\_block (block :Block) : This is used by the peer to send the requested block to the node. After the node has received all the data, the node calculates the multihash checksum to see it if indeed received the correct data. If the block is accepted it moves from the want\_list to have\_list. The ledgers are updated accordingly.
+    \item close (final :Bool) : This is used to close the connection after the block has been received from the peer (or in case of a timeout).
+\end{enumerate}

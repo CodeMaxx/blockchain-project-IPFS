@@ -1,0 +1,28 @@
+
+\chapter{The IPFS Stack}
+The IPFS stack has 6 layers as follows (bottom-up):
+
+\begin{enumerate}
+    \item Network
+    \item Routing
+    \item Exchange
+    \item MerkleDAG
+    \item Naming
+    \item Application
+\end{enumerate}
+
+The MerkleDAG layer is the most important out of these. It forms a thin waist model where layers above and below it can be developed independent of each other i.e the protocols in the bottom layers can change without the upper layers knowing. Due to this independence, the layers of IPFS are being built as separate projects.
+
+The network, routing and exchange layers are being built under a project named \textit{libp2p}\cite{libp2p}.
+
+The merkledag layer is being built as a project named the \textit{InterPlanetary Linked Data (IPLD)}\cite{ipld}.
+
+The naming layer is being built as a project named the \textit{InterPlanetary Naming System (IPNS)}.
+
+
+\input{sections/libp2p.tex}
+\input{sections/ipld.tex}
+\input{sections/ipns.tex}
+
+
+% \todo{Mention bitswap here}

@@ -1,0 +1,60 @@
+\section{IPNS - Naming the data}
+
+As we discussed immutable paths provide various benefits to IPFS like integrity checking and indefinite caching (If you know an object is not going to change it's cache need not expire ever).
+
+But this implies that if an object is changed, then the new IPFS link needs to be sent to people who want to access it. Thus we need some way to retrieve mutable state at the same path. This is where InterPlanetary Naming System (IPNS) comes in.
+
+\subsection{Self-certified Names}
+IPFS uses the naming scheme from SFS \cite{Mazieres:2000:SFS:934196} to construct a mutable namespace for every node. These names are self-certified, which means that the information used to retrieve the actual data is signed by the private key of the node. This provides a guarantee that the data indeed belongs to that node.
+
+In IPFS, $NodeID = hash(node.PubKey)$ and each user gets a mutable namespace at
+\begin{minted}{text}
+    /ipns/<NodeID>
+\end{minted}
+
+Now since everything in IPFS is content addressed, we need a way to go from an IPNS address to an actual IPFS address. The Routing system comes to rescue here.
+
+The first step is to publish the object in a regular manner and get it's IPFS address. Then we publish this hash on the routing system as a metadata value with the NodeId as the key.
+
+\begin{minted}{c}
+    routing.setValue(NodeId, <ns-object-hash>)
+    // Here NodeId is the IPNS address of the object
+\end{minted}
+
+This mapping can be changed by the private key holder in the future, thus allowing the same name to point to different things at different time.
+
+\subsection{Human Readable Names}
+We can see that IPNS names are hard to remember and not very user friendly.
+
+One of the ways in which IPFS solves this problem (especially useful for websites hosted on IPFS) is to allow ipfs and ipns address in the DNS TXT records.
+
+An example of a TXT record in my own website is as follow:
+
+\begin{minted}{c}
+    ee465.akashtrehan.com.  1799    IN  TXT
+    "dnslink=/ipns/QmWBPZZ59ZDgigAthNEa2sjuiDTKbRdaBjVYDH4tfZHdHS"
+\end{minted}
+
+On requesting the location,
+
+\begin{minted}{text}
+    /ipns/ee465.akashtrehan.com
+\end{minted}
+
+IPFS first looks up the TXT DNS records for \textit{ee465.akashtrehan.com}, then looks for the record with a \textit{dnslink}.
+
+It then "redirects" to that address mentioned in the dnslink. In this case \begin{minted}{text}
+    /ipns/ee465.akashtrehan.com
+\end{minted}
+resolves to 
+
+\begin{minted}{text}
+    /ipns/QmWBPZZ59ZDgigAthNEa2sjuiDTKbRdaBjVYDH4tfZHdHS
+\end{minted}
+
+which further resolves to the IPFS address
+\begin{minted}{text}
+    /ipfs/QmYz3vZGv3gi2AYNptfYM3DxxrqkE5gbSxq1tKtiGS6DJk
+\end{minted}
+
+The content corresponding to this IPFS address is finally retrieved by the block exchange system.

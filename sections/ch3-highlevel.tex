@@ -1,0 +1,19 @@
+\chapter{High Level Overview / Usage}
+
+Every node in the IPFS ecosystem has a NodeId. It can upload data to the system and retrieve data. IPFS has both a command-line interface as well as a web UI.
+
+Adding directory to IPFS is as simple as:
+
+\begin{minted}{bash}
+    ipfs add -r /path/to/dir/
+\end{minted}
+
+This recursively adds all the files inside the directory to IPFS and returns an IPFS address for each of them.
+
+To retrieve content, the user needs its address. It can either put the address in the Web UI or use for following terminal command:
+
+\begin{minted}{bash}
+    ipfs cat /ipfs/<content_address>
+\end{minted}
+
+Let us now look at what's happening under the hood.

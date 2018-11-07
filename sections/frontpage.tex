@@ -1,0 +1,67 @@
+%  A simple AAU report template.
+%  2015-05-08 v. 1.2.0
+%  Copyright 2010-2015 by Jesper Kjær Nielsen <jkn@es.aau.dk>
+%
+%  This is free software: you can redistribute it and/or modify
+%  it under the terms of the GNU General Public License as published by
+%  the Free Software Foundation, either version 3 of the License, or
+%  (at your option) any later version.
+%
+%  This is distributed in the hope that it will be useful,
+%  but WITHOUT ANY WARRANTY; without even the implied warranty of
+%  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%  GNU General Public License for more details.
+%
+%  You can find the GNU General Public License at <http://www.gnu.org/licenses/>.
+%
+\pdfbookmark[0]{Front page}{label:frontpage}%
+\begin{titlepage}
+  \addtolength{\hoffset}{0.5\evensidemargin-0.5\oddsidemargin} %set equal margins on the frontpage - remove this line if you want default margins
+  \noindent%
+  \begin{tabular}{@{}p{\textwidth}@{}}
+    \toprule[2pt]
+    \midrule
+    \vspace{0.2cm}
+    \begin{center}
+    \Huge{\textbf{
+      IPFS: InterPlanetary File System% insert your title here
+    }}
+    \end{center}
+    \begin{center}
+      \Large{
+        The Distributed, Permanent Web% insert your subtitle here
+      }
+    \end{center}
+    \vspace{0.2cm}\\
+    \midrule
+    \toprule[2pt]
+  \end{tabular}
+  \vspace{4 cm}
+  \begin{center}
+    {\large
+      Project Report%Insert document type (e.g., Project Report)
+    }\\
+    \vspace{0.2cm}
+    {\Large
+      Akash Trehan - 150050031%Insert your group name or real names here
+    }
+  \end{center}
+  \vfill
+    \ifx\titlepageleftcolumnwidth\undefined
+      \newlength{\titlepageleftcolumnwidth}
+      \newlength{\titlepagerightcolumnwidth}
+    \fi
+    \setlength{\titlepageleftcolumnwidth}{0.3\textwidth-\tabcolsep}
+    \setlength{\titlepagerightcolumnwidth}{\textwidth-2\tabcolsep-\titlepageleftcolumnwidth}
+    \vspace {1cm}
+    \begin{center}
+        \includegraphics[width=\titlepageleftcolumnwidth]{figures/logo}
+    \end{center}    
+  \vspace{1.5cm}
+  \begin{center}
+  EE 465: Cryptocurrency And Blockchain Technologies \\
+  IIT Bombay \\
+  \today
+  \end{center}
+\end{titlepage}
+\clearpage
